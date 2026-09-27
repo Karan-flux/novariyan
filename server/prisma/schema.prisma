@@ -1,0 +1,729 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+}
+
+enum BookingStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  CONVERTED
+  LOST
+  ARCHIVED
+}
+
+enum AnalyticsEventType {
+  PAGE_VIEW
+  SESSION_START
+  BOOKING_STARTED
+  BOOKING_COMPLETED
+  CONTACT_SUBMITTED
+  SERVICE_VIEW
+  WORK_VIEW
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  OTHER
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  CONCEPT
+  LIVE
+  ARCHIVED
+}
+
+// ─────────────────────────────────────────────
+// ADMIN AUTHENTICATION
+// ─────────────────────────────────────────────
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(ADMIN)
+  isActive     Boolean  @default(true)
+
+  sessions     AdminSession[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model AdminSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// BOOKINGS
+// ─────────────────────────────────────────────
+
+model Booking {
+  id             String        @id @default(cuid())
+
+  name           String
+  company        String?
+  email          String
+  whatsapp       String
+  websiteUrl     String?
+
+  projectType    String
+  budget         String
+
+  preferredDate  String
+  preferredTime  String
+
+  description    String?
+
+  status         BookingStatus  @default(NEW)
+  source         LeadSource     @default(WEBSITE)
+
+  adminNotes     String?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([preferredDate])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// CONTACT / LEADS
+// ─────────────────────────────────────────────
+
+model Lead {
+  id          String      @id @default(cuid())
+
+  name        String
+  email       String
+  whatsapp    String?
+  company     String?
+
+  service     String
+  budget      String
+  message     String
+
+  status      LeadStatus  @default(NEW)
+  source      LeadSource  @default(WEBSITE)
+  isRead      Boolean     @default(false)
+
+  adminNotes  String?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// NEWSLETTER
+// ─────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ─────────────────────────────────────────────
+// SERVICES
+// ─────────────────────────────────────────────
+
+model Service {
+  id               String   @id @default(cuid())
+  number           String
+  slug             String   @unique
+  title            String
+  shortTitle       String
+  shortDescription String
+  heroHeadline     String
+  heroSubheadline  String
+  iconName         String
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  deliverables     ServiceDeliverable[]
+  technologies     ServiceTechnology[]
+  painPoints       ServicePainPoint[]
+  outcomes         ServiceOutcome[]
+  sections         ServiceSection[]
+  processSteps     ServiceProcessStep[]
+  faqs             ServiceFAQ[]
+}
+
+model ServiceDeliverable {
+  id        String  @id @default(cuid())
+  serviceId String
+  content   String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServiceTechnology {
+  id        String  @id @default(cuid())
+  serviceId String
+  name      String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServicePainPoint {
+  id        String  @id @default(cuid())
+  serviceId String
+  content   String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServiceOutcome {
+  id        String  @id @default(cuid())
+  serviceId String
+  content   String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServiceSection {
+  id          String  @id @default(cuid())
+  serviceId   String
+
+  label       String
+  title       String
+  description String
+  sortOrder   Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  items ServiceSectionItem[]
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServiceSectionItem {
+  id        String  @id @default(cuid())
+  sectionId String
+
+  title     String
+  detail    String
+  sortOrder Int     @default(0)
+
+  section ServiceSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@index([sortOrder])
+}
+
+model ServiceProcessStep {
+  id        String  @id @default(cuid())
+  serviceId String
+
+  step      String
+  title     String
+  detail    String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+model ServiceFAQ {
+  id        String  @id @default(cuid())
+  serviceId String
+
+  question  String
+  answer    String
+  sortOrder Int     @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// PROJECTS
+// ─────────────────────────────────────────────
+
+model Project {
+  id                  String        @id @default(cuid())
+
+  number              String
+  slug                String        @unique
+  title               String
+
+  clientPlaceholderNote String?
+  industry            String
+
+  year                String
+  featured            Boolean       @default(false)
+  status              ProjectStatus @default(CONCEPT)
+
+  heroImage           String
+
+  summary             String
+  overview            String
+  challenge           String
+  approach            String
+  designDetails       String
+  developmentDetails  String
+
+  resultsNotice       String?
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  categories          ProjectCategory[]
+  services            ProjectService[]
+  gallery             ProjectGallery[]
+  technologies        ProjectTechnology[]
+  metrics             ProjectMetric[]
+
+  @@index([featured])
+  @@index([status])
+  @@index([industry])
+  @@index([year])
+}
+
+model ProjectCategory {
+  id        String  @id @default(cuid())
+  projectId String
+  category  String
+  sortOrder Int     @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, category])
+  @@index([category])
+}
+
+model ProjectService {
+  id        String  @id @default(cuid())
+  projectId String
+  service   String
+  sortOrder Int     @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ProjectGallery {
+  id        String  @id @default(cuid())
+  projectId String
+
+  src       String
+  caption   String
+  aspect    String
+
+  sortOrder Int @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([sortOrder])
+}
+
+model ProjectTechnology {
+  id        String  @id @default(cuid())
+  projectId String
+  name      String
+  sortOrder Int @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([sortOrder])
+}
+
+model ProjectMetric {
+  id        String  @id @default(cuid())
+  projectId String
+
+  label     String
+  value     String
+  context   String
+
+  sortOrder Int @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// TESTIMONIALS
+// ─────────────────────────────────────────────
+
+model Testimonial {
+  id               String   @id @default(cuid())
+
+  quote            String
+  clientName       String
+  role             String
+  company          String
+  projectType      String
+  serviceCategory  String
+
+  rating           Int
+  isPlaceholder    Boolean  @default(true)
+  hasVideo         Boolean  @default(false)
+  videoUrl         String?
+
+  isPublished      Boolean  @default(false)
+  sortOrder        Int      @default(0)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([serviceCategory])
+  @@index([sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// BLOG
+// ─────────────────────────────────────────────
+
+model BlogAuthor {
+  id        String      @id @default(cuid())
+
+  name      String
+  role      String
+  avatar    String?
+  bio       String?
+
+  posts     BlogPost[]
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model BlogPost {
+  id              String        @id @default(cuid())
+
+  slug            String        @unique
+  title           String
+  excerpt         String
+  category        String
+
+  publishedAt     DateTime?
+  readingTimeMinutes Int
+
+  featured        Boolean       @default(false)
+  heroImage       String
+
+  authorId        String
+
+  status          ContentStatus @default(DRAFT)
+
+  seoTitle        String?
+  seoDescription  String?
+  canonicalUrl    String?
+  ogImage         String?
+
+  author          BlogAuthor    @relation(fields: [authorId], references: [id])
+
+  takeaways       BlogTakeaway[]
+  sections        BlogSection[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([featured])
+  @@index([publishedAt])
+}
+
+model BlogTakeaway {
+  id        String @id @default(cuid())
+  postId    String
+
+  content   String
+  sortOrder Int    @default(0)
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([sortOrder])
+}
+
+model BlogSection {
+  id        String @id @default(cuid())
+  postId    String
+
+  heading   String
+  sortOrder Int    @default(0)
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  paragraphs BlogSectionParagraph[]
+
+  @@index([postId])
+  @@index([sortOrder])
+}
+
+model BlogSectionParagraph {
+  id        String @id @default(cuid())
+  sectionId String
+
+  content   String
+  sortOrder Int    @default(0)
+
+  section BlogSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@index([sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// SITE CONTENT / CMS
+// ─────────────────────────────────────────────
+
+model FounderProfile {
+  id               String   @id @default(cuid())
+
+  name             String
+  role             String
+  image            String?
+
+  placeholderNotice String?
+
+  shortBio         String
+  philosophy       String
+
+  expertise        FounderExpertise[]
+  socials          FounderSocial[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model FounderExpertise {
+  id          String @id @default(cuid())
+  founderId   String
+
+  content     String
+  sortOrder   Int    @default(0)
+
+  founder FounderProfile @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  @@index([founderId])
+}
+
+model FounderSocial {
+  id          String @id @default(cuid())
+  founderId   String
+
+  label       String
+  href        String
+  sortOrder   Int    @default(0)
+
+  founder FounderProfile @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  @@index([founderId])
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+
+  key       String   @unique
+  value     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+model Capability {
+  id          String @id @default(cuid())
+
+  index       String
+  title       String
+  subtitle    String
+  description String
+  sortOrder   Int    @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model ProcessStep {
+  id          String @id @default(cuid())
+
+  number      String
+  title       String
+  description String
+  deliverables String
+
+  sortOrder   Int    @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model Industry {
+  id           String @id @default(cuid())
+
+  slug         String @unique
+  name         String
+  headline     String
+  description  String
+  focus        String
+  previewImage String?
+
+  sortOrder    Int @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model SocialLink {
+  id        String @id @default(cuid())
+
+  label     String
+  href      String
+  handle    String?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+
+  adminUserId String?
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([adminUserId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+model VisitorSession {
+  id              String          @id @default(cuid())
+  anonymousId     String
+  sessionKey      String          @unique
+  landingPage     String
+  referrer        String?
+  consentVersion  String
+  startedAt       DateTime        @default(now())
+  lastSeenAt      DateTime        @default(now())
+
+  events AnalyticsEvent[]
+
+  @@index([anonymousId, startedAt])
+  @@index([startedAt])
+}
+
+model AnalyticsEvent {
+  id        String              @id @default(cuid())
+  sessionId String
+  eventType AnalyticsEventType
+  path      String
+  createdAt DateTime            @default(now())
+
+  session VisitorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([eventType, createdAt])
+  @@index([sessionId, createdAt])
+}
