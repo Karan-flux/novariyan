@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://novariyan.com/sitemap.xml
+Sitemap: https://novariyan.tech/sitemap.xml
